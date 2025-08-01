@@ -47,7 +47,7 @@ if not st.session_state.authenticated:
     with st.form("login"):
         name = st.text_input("Name")
         email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
+        password = st.text_input("Password(Create a new password)", type="password")
         submit = st.form_submit_button("Login")
 
         if submit:

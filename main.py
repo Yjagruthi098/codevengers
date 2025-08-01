@@ -88,59 +88,64 @@ if st.session_state.authenticated:
         col1, col2, col3 = st.columns(3)
 
         with col1:
+            if "flashcard_count" not in st.session_state:
+                st.session_state.flashcard_count = 5
+            st.session_state.flashcard_count = st.number_input("Number of Flashcards", min_value=1, max_value=20, value=st.session_state.flashcard_count, step=1, key="flashcard_count_input")
             if st.button("📋 Generate Summary"):
                 with st.spinner("Summarizing..."):
                     summary = ask_gemini(pdf_text, "", mode="summary")
                     st.text_area("Summary", summary, height=200)
                     st.download_button("💾 Download Summary", summary, file_name="summary.txt")
-
-        with col2:
             if st.button("🧠 Generate Flashcards"):
                 with st.spinner("Generating flashcards..."):
-                    flashcards = ask_gemini(pdf_text, "", mode="flashcards")
+                    flashcards = ask_gemini(pdf_text, "", mode="flashcards", extra_info={"count": st.session_state.flashcard_count})
                     st.text_area("Flashcards", flashcards, height=200)
                     st.download_button("💾 Download Flashcards", flashcards, file_name="flashcards.txt")
 
-        with col3:
+        with col2:
+            if "quiz_count" not in st.session_state:
+                st.session_state.quiz_count = 5
+            st.session_state.quiz_count = st.number_input("Number of Quiz Questions", min_value=1, max_value=20, value=st.session_state.quiz_count, step=1, key="quiz_count_input")
+
             if "quiz_data" not in st.session_state:
                 st.session_state.quiz_data = None
             if "quiz_answers" not in st.session_state:
                 st.session_state.quiz_answers = {}
 
             def parse_quiz(raw_quiz):
+                import re
+                # Regex to match Qn, options, and answer for any number of questions
+                pattern = re.compile(
+                    r"Q(\d+)\.\s*(.*?)\nA\)\s*(.*?)\nB\)\s*(.*?)\nC\)\s*(.*?)\nD\)\s*(.*?)\nAnswer:\s*([ABCD])",
+                    re.DOTALL | re.MULTILINE
+                )
+                matches = pattern.findall(raw_quiz)
                 questions = []
-                parts = raw_quiz.strip().split("\n\n")
-                for part in parts:
-                    lines = [line.strip() for line in part.strip().split("\n") if line.strip()]
-                    if len(lines) < 6 or not lines[0].lower().startswith("q"):
-                        continue
-                    question_text = lines[0].split(".", 1)[1].strip() if "." in lines[0] else lines[0]
-                    options = {}
-                    try:
-                        for opt_line in lines[1:5]:
-                            letter, text = opt_line.split(")", 1)
-                            options[letter.strip()] = text.strip()
-                        answer_line = lines[5]
-                        answer = answer_line.split(":", 1)[1].strip()
-                    except Exception:
-                        continue
+                for m in matches:
+                    q_num, question, optA, optB, optC, optD, answer = m
                     questions.append({
-                        "question": question_text,
-                        "options": options,
-                        "answer": answer
+                        "question": question.strip(),
+                        "options": {
+                            "A": optA.strip(),
+                            "B": optB.strip(),
+                            "C": optC.strip(),
+                            "D": optD.strip(),
+                        },
+                        "answer": answer.strip()
                     })
                 return questions
 
             if st.button("📝 Generate Quiz"):
                 with st.spinner("Generating quiz..."):
-                    raw_quiz = ask_gemini(pdf_text, "", mode="quiz")
+                    raw_quiz = ask_gemini(pdf_text, "", mode="quiz", extra_info={"count": st.session_state.quiz_count})
                     questions = parse_quiz(raw_quiz)
                     if not questions:
                         st.error("Failed to parse quiz.")
                         st.session_state.quiz_data = None
                         st.session_state.quiz_answers = {}
                     else:
-                        st.session_state.quiz_data = questions
+                        # Only keep the number of questions requested
+                        st.session_state.quiz_data = questions[:st.session_state.quiz_count]
                         st.session_state.quiz_answers = {}
                         st.success("Quiz generated! Please answer below.")
 

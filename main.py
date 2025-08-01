@@ -1,7 +1,7 @@
 #main.py
 import streamlit as st
 import re
-from utils import extract_text_from_pdf, ask_gemini
+from utils import extract_text_from_pdf, ask_gemini, find_relevant_youtube_video
 
 st.set_page_config(page_title="PDF Q&A (Gemini)", layout="wide")
 
@@ -32,6 +32,14 @@ if st.session_state.authenticated:
     if uploaded_file:
         pdf_text = extract_text_from_pdf(uploaded_file)
         st.success("✅ PDF parsed successfully!")
+        st.markdown("### 🎥 Relevant YouTube Video")
+        if st.button("Find Related Video"):
+            with st.spinner("Searching YouTube..."):
+                video_url = find_relevant_youtube_video(pdf_text)
+                if video_url:
+                    st.video(video_url)
+                else:
+                    st.error("Couldn't find a relevant video. Try again or check internet connection.")
 
         st.markdown("### 🔍 Ask a Question")
         question = st.text_input("Enter your question about the PDF")

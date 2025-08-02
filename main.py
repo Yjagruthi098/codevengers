@@ -1,3 +1,4 @@
+#main.py
 import streamlit as st
 import re
 from utils import extract_text_from_pdf, ask_gemini, find_relevant_youtube_video
@@ -73,54 +74,50 @@ if st.session_state.authenticated:
                 if video_url:
                     st.video(video_url)
                 else:
-                    st.warning("No relevant video found.")
+                    st.error("No relevant video found.")
 
-        st.success("✅ PDF parsed successfully!")
+        st.markdown("### 🔍 Ask a Question")
+        question = st.text_input("Enter your question about the PDF")
+        if st.button("Get Answer"):
+            with st.spinner("Gemini is thinking..."):
+                answer = ask_gemini(pdf_text, question, mode="qa")
+                st.markdown(f"<div class='question-text'>Q: {question}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='answer-text'>{answer}</div>", unsafe_allow_html=True)
+                st.download_button("💾 Download Answer", answer, file_name="answer.txt")
 
-        # 1. Summary
-        st.markdown("### 📋 Generate Summary")
-        summary_mode = st.selectbox("Summary Style", ["Bullet Points", "Executive Summary", "Technical Summary"], key="summary_mode")
-        if "summary" not in st.session_state:
-            if st.button("Generate Summary"):
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            if "flashcard_count" not in st.session_state:
+                st.session_state.flashcard_count = 5
+            st.session_state.flashcard_count = st.number_input("Number of Flashcards", min_value=1, max_value=20, value=st.session_state.flashcard_count, step=1, key="flashcard_count_input")
+            if st.button("📋 Generate Summary"):
                 with st.spinner("Summarizing..."):
-                    st.session_state.summary = ask_gemini(pdf_text, "", mode="summary", extra_info={"style": summary_mode})
-        if "summary" in st.session_state:
-            st.text_area("Summary", st.session_state.summary, height=200)
-            st.download_button("💾 Download Summary", st.session_state.summary, file_name="summary.txt")
-
-        # 2. Flashcards
-        st.markdown("### 🧠 Generate Flashcards")
-        if "flashcard_count" not in st.session_state:
-            st.session_state.flashcard_count = 5
-        st.session_state.flashcard_count = st.number_input(
-            "Number of Flashcards", min_value=1, max_value=20,
-            value=st.session_state.flashcard_count, step=1, key="flashcard_count_input"
-        )
-        if "flashcards" not in st.session_state:
-            if st.button("Generate Flashcards"):
+                    summary = ask_gemini(pdf_text, "", mode="summary")
+                    st.text_area("Summary", summary, height=200)
+                    st.download_button("💾 Download Summary", summary, file_name="summary.txt")
+            if st.button("🧠 Generate Flashcards"):
                 with st.spinner("Generating flashcards..."):
-                    st.session_state.flashcards = ask_gemini(
-                        pdf_text, "", mode="flashcards",
-                        extra_info={"count": st.session_state.flashcard_count}
-                    )
-        if "flashcards" in st.session_state:
-            st.text_area("Flashcards", st.session_state.flashcards, height=200)
-            st.download_button("💾 Download Flashcards", st.session_state.flashcards, file_name="flashcards.txt")
+                    flashcards = ask_gemini(pdf_text, "", mode="flashcards", extra_info={"count": st.session_state.flashcard_count})
+                    st.text_area("Flashcards", flashcards, height=200)
+                    st.download_button("💾 Download Flashcards", flashcards, file_name="flashcards.txt")
 
-        # 3. Quiz
-        st.markdown("### 📝 Generate Quiz")
-        quiz_difficulty = st.selectbox("Quiz Difficulty", ["Easy", "Medium", "Hard"], key="quiz_difficulty")
-        if "quiz_count" not in st.session_state:
-            st.session_state.quiz_count = 5
-        st.session_state.quiz_count = st.number_input(
-            "Number of Quiz Questions", min_value=1, max_value=20,
-            value=st.session_state.quiz_count, step=1, key="quiz_count_input"
-        )
-        if "quiz_data" not in st.session_state:
+        with col2:
+            if "quiz_count" not in st.session_state:
+                st.session_state.quiz_count = 5
+            st.session_state.quiz_count = st.number_input("Number of Quiz Questions", min_value=1, max_value=20, value=st.session_state.quiz_count, step=1, key="quiz_count_input")
+
+            if "quiz_data" not in st.session_state:
+                st.session_state.quiz_data = None
+            if "quiz_answers" not in st.session_state:
+                st.session_state.quiz_answers = {}
+
             def parse_quiz(raw_quiz):
                 import re
+                # Regex to match Qn, options, and answer for any number of questions
                 pattern = re.compile(
-                    r"Q(\d+)\.\s*(.*?)\nA\)\s*(.*?)\nB\)\s*(.*?)\nC\)\s*(.*?)\nD\)\s*(.*?)\nAnswer:\s*([ABCD])",
+                    r"Q(\d+)\.\s*(.?)\nA\)\s(.?)\nB\)\s(.?)\nC\)\s(.?)\nD\)\s(.?)\nAnswer:\s([ABCD])",
                     re.DOTALL | re.MULTILINE
                 )
                 matches = pattern.findall(raw_quiz)
@@ -138,51 +135,51 @@ if st.session_state.authenticated:
                         "answer": answer.strip()
                     })
                 return questions
-            if st.button("Generate Quiz"):
+
+            if st.button("📝 Generate Quiz"):
                 with st.spinner("Generating quiz..."):
-                    raw_quiz = ask_gemini(
-                        pdf_text, "", mode="quiz",
-                        extra_info={"count": st.session_state.quiz_count, "difficulty": quiz_difficulty}
-                    )
+                    raw_quiz = ask_gemini(pdf_text, "", mode="quiz", extra_info={"count": st.session_state.quiz_count})
                     questions = parse_quiz(raw_quiz)
                     if not questions:
                         st.error("Failed to parse quiz.")
                         st.session_state.quiz_data = None
                         st.session_state.quiz_answers = {}
                     else:
+                        # Only keep the number of questions requested
                         st.session_state.quiz_data = questions[:st.session_state.quiz_count]
                         st.session_state.quiz_answers = {}
                         st.success("Quiz generated! Please answer below.")
-        if "quiz_data" in st.session_state:
-            st.markdown("### 📝 Attempt the Quiz:")
-            for i, q in enumerate(st.session_state.quiz_data):
-                user_answer = st.radio(
-                    f"Q{i+1}. {q['question']}",
-                    options=["A", "B", "C", "D"],
-                    format_func=lambda x: f"{x}) {q['options'][x]}",
-                    key=f"quiz_q{i}"
-                )
-                st.session_state.quiz_answers[i] = user_answer
 
-            if st.button("Submit Quiz"):
-                score = 0
-                total = len(st.session_state.quiz_data)
+            if st.session_state.quiz_data:
+                st.markdown("### 📝 Attempt the Quiz:")
                 for i, q in enumerate(st.session_state.quiz_data):
-                    if st.session_state.quiz_answers.get(i) == q["answer"]:
-                        score += 1
-                st.success(f"Your score: {score} / {total}")
+                    user_answer = st.radio(
+                        f"Q{i+1}. {q['question']}",
+                        options=["A", "B", "C", "D"],
+                        format_func=lambda x: f"{x}) {q['options'][x]}",
+                        key=f"quiz_q{i}"
+                    )
+                    st.session_state.quiz_answers[i] = user_answer
 
-                if score == total:
-                    st.balloons()
-                    st.info("🎉 Perfect score! You're a PDF quiz master! 🏆")
-                elif score >= total * 0.7:
-                    st.info("👍 Great job! You passed the quiz!")
-                else:
-                    st.info("📚 Keep practicing and try again!")
+                if st.button("Submit Quiz"):
+                    score = 0
+                    total = len(st.session_state.quiz_data)
+                    for i, q in enumerate(st.session_state.quiz_data):
+                        if st.session_state.quiz_answers.get(i) == q["answer"]:
+                            score += 1
+                    st.success(f"Your score: {score} / {total}")
 
-                if st.button("Reset Quiz"):
-                    st.session_state.quiz_data = None
-                    st.session_state.quiz_answers = {}
+                    if score == total:
+                        st.balloons()
+                        st.info("🎉 Perfect score! You're a PDF quiz master! 🏆")
+                    elif score >= total * 0.7:
+                        st.info("👍 Great job! You passed the quiz!")
+                    else:
+                        st.info("📚 Keep practicing and try again!")
+
+                    if st.button("Reset Quiz"):
+                        st.session_state.quiz_data = None
+                        st.session_state.quiz_answers = {}
 
     if st.button("🔐 Logout"):
         st.session_state.authenticated = False

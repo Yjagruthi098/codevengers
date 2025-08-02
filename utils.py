@@ -22,20 +22,24 @@ def ask_gemini(context, query, mode="qa", extra_info=None, custom_prompt=None):
     if custom_prompt:
         prompt = custom_prompt
     elif mode == "summary":
-        prompt = f"Summarize the following content:\n\n{context}"
+        style = extra_info.get("style", "Bullet Points") if extra_info else "Bullet Points"
+        if style == "Bullet Points":
+            prompt = f"Summarize the following content as bullet points:\n\n{context}"
+        elif style == "Executive Summary":
+            prompt = f"Write an executive summary of the following content:\n\n{context}"
+        elif style == "Technical Summary":
+            prompt = f"Write a technical summary of the following content:\n\n{context}"
+        else:
+            prompt = f"Summarize the following content:\n\n{context}"
     elif mode == "flashcards":
         count = extra_info.get("count", 5) if extra_info else 5
         prompt = f"Create {count} flashcards in 'Question - Answer' format from this:\n\n{context}"
     elif mode == "quiz":
         count = extra_info.get("count", 5) if extra_info else 5
-        prompt = f"""Generate {count} multiple-choice questions in this exact format...
-        Q1. ...
-        A) ...
-        Answer: B
-        From this text:\n\n{context}"""
+        difficulty = extra_info.get("difficulty", "Medium") if extra_info else "Medium"
+        prompt = f"""Generate {count} multiple-choice questions ({difficulty} difficulty) in this exact format:\nQ1. ...\nA) ...\nB) ...\nC) ...\nD) ...\nAnswer: B\nFrom this text:\n\n{context}"""
     else:
         prompt = f"Context:\n{context}\n\nQuestion:\n{query}\n\nExplain it simply."
-        # Removed the problematic multiline string above
 
     response = model.generate_content(prompt)
     return response.text.strip()

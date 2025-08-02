@@ -1,4 +1,3 @@
-#working code
 # main.py
 import streamlit as st
 import re
@@ -114,18 +113,41 @@ if st.session_state.authenticated:
 
         st.markdown("<div class='numbered-title'>6. Generate Quiz</div>", unsafe_allow_html=True)
         st.session_state.quiz_count = st.number_input("Number of Quiz Questions", min_value=1, max_value=20, value=5)
+
+        if "quiz_data" not in st.session_state:
+            st.session_state.quiz_data = []
+        if "quiz_submitted" not in st.session_state:
+            st.session_state.quiz_submitted = False
+        if "quiz_answers" not in st.session_state:
+            st.session_state.quiz_answers = {}
+
         if st.button("📝 Generate Quiz"):
             def parse_quiz(raw_quiz):
                 pattern = re.compile(
-                    r"Q(\d+)\.\s*(.?)\nA\)\s(.?)\nB\)\s(.?)\nC\)\s(.?)\nD\)\s(.*?)\nAnswer:\s([ABCD])",
+                    r"Q(\d+)\.\s*(.?)\nA\)\s(.?)\nB\)\s(.?)\nC\)\s(.?)\nD\)\s(.?)\nAnswer:?\s([ABCD])",
                     re.DOTALL | re.MULTILINE
                 )
                 matches = pattern.findall(raw_quiz)
-                return [{
-                    "question": m[1].strip(),
-                    "options": {"A": m[2].strip(), "B": m[3].strip(), "C": m[4].strip(), "D": m[5].strip()},
-                    "answer": m[6].strip()
-                } for m in matches]
+                if not matches:
+                    pattern_fallback = re.compile(
+                        r"Q(\d+)\.\s*(.?)\nA\)\s(.?)\nB\)\s(.?)\nC\)\s(.?)\nD\)\s(.?)\nAnswer:?\s([ABCD])",
+                        re.DOTALL | re.IGNORECASE
+                    )
+                    matches = pattern_fallback.findall(raw_quiz)
+                questions = []
+                for m in matches:
+                    q_num, question, optA, optB, optC, optD, answer = m
+                    questions.append({
+                        "question": question.strip(),
+                        "options": {
+                            "A": optA.strip(),
+                            "B": optB.strip(),
+                            "C": optC.strip(),
+                            "D": optD.strip(),
+                        },
+                        "answer": answer.strip().upper()
+                    })
+                return questions
 
             with st.spinner("Generating quiz..."):
                 raw_quiz = ask_gemini(pdf_text, "", mode="quiz", extra_info={"count": st.session_state.quiz_count})
@@ -133,14 +155,48 @@ if st.session_state.authenticated:
                 if not questions:
                     st.error("Failed to parse quiz.")
                 else:
-                    score = 0
-                    for i, q in enumerate(questions):
-                        user_answer = st.radio(f"Q{i+1}. {q['question']}", ["A", "B", "C", "D"],
-                                               format_func=lambda x: f"{x}) {q['options'][x]}",
-                                               key=f"quiz_q{i}")
-                        if user_answer == q['answer']:
-                            score += 1
-                    st.success(f"✅ Your score: {score} / {len(questions)}")
+                    st.session_state.quiz_data = questions
+                    st.session_state.quiz_submitted = False
+                    st.session_state.quiz_answers = {}
+
+        if st.session_state.quiz_data:
+            st.markdown("### 📝 Attempt Quiz:")
+            for i, q in enumerate(st.session_state.quiz_data):
+                user_answer = st.radio(
+                    f"Q{i+1}. {q['question']}",
+                    ["A", "B", "C", "D"],
+                    format_func=lambda x: f"{x}) {q['options'][x]}",
+                    key=f"quiz_q{i}"
+                )
+                st.session_state.quiz_answers[i] = user_answer
+
+            if st.button("✅ Submit Quiz"):
+                score = 0
+                total = len(st.session_state.quiz_data)
+                for i, q in enumerate(st.session_state.quiz_data):
+                    if st.session_state.quiz_answers.get(i) == q["answer"]:
+                        score += 1
+                st.session_state.quiz_submitted = True
+                st.session_state.quiz_score = score
+
+        if st.session_state.get("quiz_submitted"):
+            score = st.session_state.quiz_score
+            total = len(st.session_state.quiz_data)
+            st.success(f"✅ Your score: {score} / {total}")
+
+            if score == total:
+                st.balloons()
+                st.info("🎉 Perfect score! You're a PDF quiz master! 🏆")
+            elif score >= total * 0.7:
+                st.info("👍 Great job! You passed the quiz!")
+            else:
+                st.info("📚 Keep practicing and try again!")
+
+            if st.button("🔁 Reset Quiz"):
+                st.session_state.quiz_data = []
+                st.session_state.quiz_answers = {}
+                st.session_state.quiz_submitted = False
+                st.rerun()
 
         st.markdown("<div class='numbered-title'>7. Notebook-style Outline</div>", unsafe_allow_html=True)
         if st.button("📚 Generate Outline"):

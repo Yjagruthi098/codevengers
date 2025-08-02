@@ -1,4 +1,4 @@
-# codevengers
+# Codevengers
 # 📘 AI-Powered PDF Q&A
 
 This is a secure, Streamlit-based web app where students can upload PDFs (notes, textbooks, assignments), ask natural language questions, and get AI-powered answers, summaries, flashcards, and quizzes.
@@ -12,6 +12,6 @@ This is a secure, Streamlit-based web app where students can upload PDFs (notes,
 
 - PDF upload & parsing
 - AI-based Q&A (Gemini)
-- Summary, Flashcard, and Quiz generation
+- Summary, Flashcard, Quiz generation and Notebook Outline
 - No storage, session-only
-- Mobile-friendly and dark-mode ready
+- Mobile-friendly

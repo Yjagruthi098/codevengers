@@ -37,7 +37,7 @@ def ask_gemini(context, query, mode="qa", extra_info=None, custom_prompt=None):
     elif mode == "quiz":
         count = extra_info.get("count", 5) if extra_info else 5
         difficulty = extra_info.get("difficulty", "Medium") if extra_info else "Medium"
-        prompt = f"""Generate {count} multiple-choice questions ({difficulty} difficulty) in the following format. Each question must be followed by options and the correct answer letter (A/B/C/D) on a new line. Example:\nQ1. What is ...?\nA) ...\nB) ...\nC) ...\nD) ...\nAnswer: B\nRepeat for each question.\nFrom this text:\n\n{context}"""
+        prompt = f"""Generate {count} multiple-choice questions ({difficulty} difficulty) in this exact format:\nQ1. ...\nA) ...\nB) ...\nC) ...\nD) ...\nAnswer: B\nFrom this text:\n\n{context}"""
     else:
         prompt = f"Context:\n{context}\n\nQuestion:\n{query}\n\nExplain it simply."
 

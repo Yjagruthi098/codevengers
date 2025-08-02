@@ -124,13 +124,13 @@ if st.session_state.authenticated:
         if st.button("📝 Generate Quiz"):
             def parse_quiz(raw_quiz):
                 pattern = re.compile(
-                    r"Q(\d+)\.\s*(.?)\nA\)\s(.?)\nB\)\s(.?)\nC\)\s(.?)\nD\)\s(.?)\nAnswer:?\s([ABCD])",
+                    r"Q(\d+)\.\s*(.*?)\nA\)\s*(.*?)\nB\)\s*(.*?)\nC\)\s*(.*?)\nD\)\s*(.*?)\nAnswer:?\s*([ABCD])",
                     re.DOTALL | re.MULTILINE
                 )
                 matches = pattern.findall(raw_quiz)
                 if not matches:
                     pattern_fallback = re.compile(
-                        r"Q(\d+)\.\s*(.?)\nA\)\s(.?)\nB\)\s(.?)\nC\)\s(.?)\nD\)\s(.?)\nAnswer:?\s([ABCD])",
+                        r"Q(\d+)\.\s*(.*?)\nA\)\s*(.*?)\nB\)\s*(.*?)\nC\)\s*(.*?)\nD\)\s*(.*?)\nAnswer:?\s*([ABCD])",
                         re.DOTALL | re.IGNORECASE
                     )
                     matches = pattern_fallback.findall(raw_quiz)

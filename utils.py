@@ -1,4 +1,3 @@
-#utils.py
 import fitz  # PyMuPDF
 import google.generativeai as genai
 import os
@@ -11,7 +10,6 @@ if not api_key:
     raise ValueError("GEMINI_API_KEY not found in .env file")
 genai.configure(api_key=api_key)
 
-# Use the Gemini model; you can adjust model name as needed
 model = genai.GenerativeModel("gemini-2.5-flash")
 
 def extract_text_from_pdf(file):
@@ -22,22 +20,17 @@ def ask_gemini(context, query, mode="qa", extra_info=None, custom_prompt=None):
     if custom_prompt:
         prompt = custom_prompt
     elif mode == "summary":
-        style = extra_info.get("style", "Bullet Points") if extra_info else "Bullet Points"
-        if style == "Bullet Points":
-            prompt = f"Summarize the following content as bullet points:\n\n{context}"
-        elif style == "Executive Summary":
-            prompt = f"Write an executive summary of the following content:\n\n{context}"
-        elif style == "Technical Summary":
-            prompt = f"Write a technical summary of the following content:\n\n{context}"
-        else:
-            prompt = f"Summarize the following content:\n\n{context}"
+        prompt = f"Summarize the following content:\n\n{context}"
     elif mode == "flashcards":
         count = extra_info.get("count", 5) if extra_info else 5
         prompt = f"Create {count} flashcards in 'Question - Answer' format from this:\n\n{context}"
     elif mode == "quiz":
         count = extra_info.get("count", 5) if extra_info else 5
-        difficulty = extra_info.get("difficulty", "Medium") if extra_info else "Medium"
-        prompt = f"""Generate {count} multiple-choice questions ({difficulty} difficulty) in this exact format:\nQ1. ...\nA) ...\nB) ...\nC) ...\nD) ...\nAnswer: B\nFrom this text:\n\n{context}"""
+        prompt = f"""Generate {count} multiple-choice questions in this exact format:
+Q1. ...\nA) ...\nB) ...\nC) ...\nD) ...\nAnswer: B
+From this text:\n\n{context}"""
+    elif mode == "notebook":
+        prompt = f"""Generate a structured notebook-style outline or flowchart from this content. Include headings, bullet points, and visual hierarchy where applicable:\n\n{context}"""
     else:
         prompt = f"Context:\n{context}\n\nQuestion:\n{query}\n\nExplain it simply."
 
@@ -45,18 +38,11 @@ def ask_gemini(context, query, mode="qa", extra_info=None, custom_prompt=None):
     return response.text.strip()
 
 def find_relevant_youtube_video(text):
-    prompt = f"""Based on the following content, generate a short, clear YouTube search query to find a relevant educational or explanatory video.
-
-Content:
-{text[:2000]}
-
-Return only the search query, no explanation.
-"""
+    prompt = f"""Based on the following content, generate a short YouTube search query for an educational video:\n\n{text[:2000]}\n\nOnly return the search query."""
     query = ask_gemini(text, "", mode="custom", custom_prompt=prompt)
 
-    # Use YouTube search via Google (no API key needed) — or use official YouTube Data API if preferred
-    search_url = f"https://www.googleapis.com/youtube/v3/search"
-    api_key = os.getenv("YOUTUBE_API_KEY")  # Add this to your .env
+    search_url = "https://www.googleapis.com/youtube/v3/search"
+    api_key = os.getenv("YOUTUBE_API_KEY")
     params = {
         "part": "snippet",
         "q": query,
@@ -72,8 +58,6 @@ Return only the search query, no explanation.
         if items:
             video_id = items[0]["id"]["videoId"]
             return f"https://www.youtube.com/watch?v={video_id}"
-        else:
-            return None
     except Exception as e:
         print("YouTube fetch error:", e)
-        return None
+    return None

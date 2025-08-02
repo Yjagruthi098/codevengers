@@ -5,7 +5,8 @@ This is a secure, Streamlit-based web app where students can upload PDFs (notes,
 
 ## 🚀 Live App
 
-[![Open in Streamlit](https://codevengers-j2wjej8fvfai6rteup4vmj.streamlit.app/)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)]([https://your-streamlit-link.streamlit.app/](https://codevengers-j2wjej8fvfai6rteup4vmj.streamlit.app/))
+
 
 ## 🔧 Features
 
